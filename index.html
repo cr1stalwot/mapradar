@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Карта Шахедов</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 90vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <h3>Карта (события из Telegram-каналов)</h3>
+  <label>Confidence ≥ <input type="number" id="confidence" min="0" max="1" step="0.1" value="0"></label>
+  <select id="source">
+    <option value="all">Все источники</option>
+    <option value="neptun_ukr">neptun_ukr</option>
+  </select>
+  <button onclick="applyFilters()">Применить фильтры</button>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([48.4, 35.0], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const icons = {
+      drone: L.icon({ iconUrl: 'icons/drone.png', iconSize: [30, 30] }),
+      impact: L.icon({ iconUrl: 'icons/explosion.png', iconSize: [30, 30] }),
+      alert: L.icon({ iconUrl: 'icons/alert.png', iconSize: [30, 30] }),
+      audio: L.icon({ iconUrl: 'icons/audio.png', iconSize: [30, 30] })
+    };
+
+    let markers = [];
+
+    fetch('data.json')
+      .then(res => res.json())
+      .then(events => {
+        events.forEach(event => {
+          const icon = icons[event.type] || icons.drone;
+          const marker = L.marker([event.lat, event.lon], { icon });
+          marker.bindPopup(`<b>${event.city}</b><br>${event.text}<br><i>${event.timestamp}</i>`);
+          marker.options.eventData = event;
+          marker.addTo(map);
+          markers.push(marker);
+        });
+      });
+
+    function applyFilters() {
+      const minConf = parseFloat(document.getElementById('confidence').value);
+      const selectedSource = document.getElementById('source').value;
+      markers.forEach(marker => {
+        const ev = marker.options.eventData;
+        const visible = ev.confidence >= minConf &&
+          (selectedSource === 'all' || ev.source === selectedSource);
+        if (visible) {
+          map.addLayer(marker);
+        } else {
+          map.removeLayer(marker);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
